@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>While Loop Execution Visualizer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f8fafc; color: #334155; padding: 20px; display: flex; justify-content: center; }
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); width: 100%; max-width: 900px; overflow: hidden; }
+        .header { background: #0f172a; color: white; padding: 16px 20px; }
+        .header h2 { font-size: 1.25rem; font-weight: 600; }
+        .header p { font-size: 0.875rem; color: #94a3b8; margin-top: 4px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 20px; }
+        @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
+        .panel-title { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .visualizer { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #fdfdfd; display: flex; flex-direction: column; justify-content: space-between; min-height: 280px; }
+        .profile { display: flex; align-items: flex-end; justify-content: space-between; height: 160px; position: relative; margin-top: 20px; border-bottom: 2px solid #cbd5e1; padding-bottom: 4px; }
+        .bar-container { display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 4px; position: relative; z-index: 2; }
+        .bar { width: 100%; background: #93c5fd; border-radius: 4px 4px 0 0; transition: all 0.3s ease; position: relative; border: 1px solid #3b82f6; }
+        .bar.active { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); }
+        .bar.target { background: #10b981; border-color: #059669; }
+        .bar.target.active { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4); }
+        .bar-label { font-size: 0.75rem; font-weight: 600; color: #475569; margin-top: 6px; }
+        .bar-index { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+        .threshold-line { position: absolute; left: 0; right: 0; border-top: 2px dashed #ef4444; z-index: 1; pointer-events: none; transition: all 0.3s; }
+        .threshold-label { position: absolute; right: 4px; color: #ef4444; font-size: 0.7rem; font-weight: 700; background: white; padding: 0 4px; border-radius: 4px; transform: translateY(-50%); border: 1px solid #fee2e2; z-index: 3; }
+        .code-container { background: #1e293b; border-radius: 8px; padding: 16px; font-family: "Fira Code", Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 0.85rem; color: #e2e8f0; line-height: 1.5; overflow-x: auto; }
+        .code-line { padding: 2px 8px; border-radius: 4px; border-left: 3px solid transparent; }
+        .code-line.active { background: #334155; border-left-color: #3b82f6; color: #fff; }
+        .indent-1 { padding-left: 24px; }
+        .indent-2 { padding-left: 40px; }
+        .state-panel { background: #f1f5f9; border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
+        .state-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.8rem; }
+        .state-item { display: flex; flex-direction: column; background: white; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .state-key { color: #64748b; font-weight: 500; font-size: 0.7rem; text-transform: uppercase; }
+        .state-val { font-family: monospace; font-weight: 600; color: #0f172a; margin-top: 2px; }
+        .controls { display: flex; gap: 10px; padding: 0 20px 20px 20px; background: #fff; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        button { flex: 1; padding: 10px 16px; border-radius: 6px; border: none; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-banner { padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; margin-top: auto; text-align: center; }
+        .status-running { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .status-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+        .status-idle { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+        <h2>While Loop Execution Visualizer</h2>
+        <p>Step through code execution sequentially to track conditions, control variables, and loop states.</p>
+    </div>
+    
+    <div class="grid">
+        <div>
+            <div class="panel-title">Spatial Data State</div>
+            <div class="visualizer">
+                <div class="profile" id="profile-container">
+                    <div class="threshold-line" id="threshold-line" style="bottom: 0%;"></div>
+                    <div class="threshold-label" id="threshold-label">Threshold: 2500m</div>
+                    </div>
+                
+                <div class="state-panel">
+                    <div class="state-grid">
+                        <div class="state-item"><span class="state-key">index</span><span class="state-val" id="val-index">-</span></div>
+                        <div class="state-item"><span class="state-key">elevation</span><span class="state-val" id="val-elevation">-</span></div>
+                        <div class="state-item"><span class="state-key">not found (Condition)</span><span class="state-val" id="val-cond">-</span></div>
+                        <div class="state-item"><span class="state-key">found</span><span class="state-val" id="val-found">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="panel-title">Code Tracker</div>
+            <div class="code-container">
+                <div class="code-line" id="line-1">threshold = 2500</div>
+                <div class="code-line" id="line-2">index = 0</div>
+                <div class="code-line" id="line-3">found = False</div>
+                <div class="code-line" id="line-4" style="margin-top: 8px;">while not found:</div>
+                <div class="code-line indent-1" id="line-5">elevation = elevations[index]</div>
+                <div class="code-line indent-1" id="line-6">if elevation >= threshold:</div>
+                <div class="code-line indent-2" id="line-7">found = True</div>
+                <div class="code-line indent-1" id="line-8">index += 1</div>
+                <div class="code-line" id="line-9" style="margin-top: 8px;"># Loop terminated safely!</div>
+            </div>
+            <div id="status-message" class="status-banner status-idle" style="margin-top: 12px;">Click 'Next Step' to initiate the program.</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="btn-secondary" id="btn-reset" onclick="resetVisualizer()">Reset</button>
+        <button class="btn-primary" id="btn-next" onclick="nextStep()">Next Step →</button>
+    </div>
+</div>
+
+<script>
+    const elevations = [1800, 1950, 2100, 2350, 2600, 2750];
+    const threshold = 2500;
+    
+    // Normalize rendering ranges
+    const minEl = 1500;
+    const maxEl = 3000;
+    const getPct = (val) => ((val - minEl) / (maxEl - minEl)) * 100;
+
+    let state = { index: 0, found: false, currentLine: 0, stepCount: 0 };
+    
+    function initVisualizer() {
+        const container = document.getElementById('profile-container');
+        // Clear old bars
+        const bars = container.querySelectorAll('.bar-container');
+        bars.forEach(b => b.remove());
+        
+        // Render threshold
+        document.getElementById('threshold-line').style.bottom = `${getPct(threshold)}%`;
+        document.getElementById('threshold-label').style.bottom = `${getPct(threshold)}%`;
+        
+        // Build chart
+        elevations.forEach((el, i) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bar-container';
+            wrapper.id = `bar-container-${i}`;
+            
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            if (el >= threshold) bar.classList.add('target');
+            bar.style.height = `${getPct(el)}%`;
+            
+            const label = document.createElement('div');
+            label.className = 'bar-label';
+            label.innerText = `${el}m`;
+            
+            const idxLabel = document.createElement('div');
+            idxLabel.className = 'bar-index';
+            idxLabel.innerText = `idx ${i}`;
+            
+            wrapper.appendChild(bar);
+            wrapper.appendChild(label);
+            wrapper.appendChild(idxLabel);
+            container.appendChild(wrapper);
+        });
+        
+        updateUI();
+    }
+
+    function updateUI() {
+        // Clear all active tracking classes
+        document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('.bar').forEach(b => b.classList.remove('active'));
+        
+        if (state.currentLine > 0) {
+            document.getElementById(`line-${state.currentLine}`).classList.add('active');
+        }
+        
+        // Highlight active profile element if bounded safely
+        if (state.index < elevations.length && state.currentLine >= 5 && state.currentLine <= 8) {
+            const container = document.getElementById(`bar-container-${state.index}`);
+            if (container) container.querySelector('.bar').classList.add('active');
+        }
+        
+        // Update data values
+        document.getElementById('val-index').innerText = state.stepCount === 0 ? '-' : state.index;
+        document.getElementById('val-elevation').innerText = (state.stepCount > 0 && state.index < elevations.length && state.currentLine >= 5) ? `${elevations[state.index]} m` : '-';
+        document.getElementById('val-found').innerText = state.stepCount === 0 ? '-' : (state.found ? 'True' : 'False');
+        document.getElementById('val-cond').innerText = state.stepCount === 0 ? '-' : (!state.found ? 'True (Keep Looping)' : 'False (Terminate)');
+        
+        const status = document.getElementById('status-message');
+        if (state.currentLine === 0) {
+            status.innerText = "Click 'Next Step' to initiate program setup.";
+            status.className = "status-banner status-idle";
+        } else if (state.currentLine === 9) {
+            status.innerText = `Success! Loop finished running. Threshold matched at index ${state.index - 1}.`;
+            status.className = "status-banner status-success";
+            document.getElementById('btn-next').disabled = true;
+        } else {
+            status.innerText = `Step ${state.stepCount}: Running program line ${state.currentLine}...`;
+            status.className = "status-banner status-running";
+        }
+    }
+
+    function nextStep() {
+        state.stepCount++;
+        
+        if (state.currentLine === 0) {
+            state.currentLine = 1;
+        } else if (state.currentLine === 1) {
+            state.currentLine = 2;
+        } else if (state.currentLine === 2) {
+            state.currentLine = 3;
+        } else if (state.currentLine === 3 || state.currentLine === 8) {
+            // Evaluate condition gate
+            if (!state.found && state.index < elevations.length) {
+                state.currentLine = 4;
+            } else {
+                state.currentLine = 9;
+            }
+        } else if (state.currentLine === 4) {
+            state.currentLine = 5;
+        } else if (state.currentLine === 5) {
+            state.currentLine = 6;
+        } else if (state.currentLine === 6) {
+            if (elevations[state.index] >= threshold) {
+                state.currentLine = 7;
+            } else {
+                state.currentLine = 8;
+            }
+        } else if (state.currentLine === 7) {
+            state.found = true;
+            state.currentLine = 8;
+        }
+        
+        // After line 8 runs inside block, we advance control variable index
+        if (state.currentLine === 8 && state.stepCount > 0) {
+            // Small internal adjustment so next cycle reads fresh values smoothly
+            setTimeout(() => {
+                if(state.currentLine === 8) state.index++;
+            }, 50);
+        }
+
+        updateUI();
+    }
+
+    function resetVisualizer() {
+        state = { index: 0, found: false, currentLine: 0, stepCount: 0 };
+        document.getElementById('btn-next').disabled = false;
+        initVisualizer();
+    }
+
+    window.onload = initVisualizer;
+</script>
+</body>
+</html>
